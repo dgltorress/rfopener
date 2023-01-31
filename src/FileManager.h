@@ -45,7 +45,7 @@ class FileManager{
 
     public:
         // Soft limits and default values
-        static const unsigned int maxPaths = 20000; // Maximum (inclusive) amount of paths allowed to be stored in a single file
+        static const unsigned int maxPaths = 50000; // Maximum (inclusive) amount of paths allowed to be stored in a single file
         static const unsigned int minDepth = 0;     // Minimum (inclusive) depth
         static const unsigned int maxDepth = 8;     // Maximum (inclusive) depth the recursive iterator is allowed to reach
         static const unsigned int depthDefault = 2; // Default depth the recursive iterator is allowed to reach
@@ -55,13 +55,20 @@ class FileManager{
         FileManager( std::string ); // Parametrized
 
         // Main functions
-        void storePathsRecursively( int = depthDefault ); // Finds and stores file paths
-        void readPaths( std::vector<std::string>& );      // Reads paths from a file and stores them in a vector
-        void openRandomFilePath();                        // Opens the path on a random line on a file
+        void readPathsRecursively( std::vector<std::string>& , int ); // Reads paths by iterating recursively and stores them in a vector
+        void readPathsFromFile( std::vector<std::string>& );          // Reads paths from a file and stores them in a vector
+
+        void storePathsRecursively( int = depthDefault );       // Finds and stores file paths
+        void openRandomFilePath();                              // Opens the path on a random line on a file
+        int getSizeFromFile();                                  // Gets the amount of stored paths from the size file
 
         // Other functions
         static std::wstring utf8ToWide( const std::string& ); // Converts a UTF8 string into a wide string
-        std::string getWorkingDirectory();                    // Working directory getter
+        void executeFile( std::string , bool = false );       // Executes a file
+        int adjustDepth( int );                               // Adjusts a depth value
+
+        void displayFileCounts( unsigned int , unsigned int );                              // Displays the amount of scanned files and distinct directories
+        void displayAllocatedMemory(  std::vector<std::string>& , size_t , unsigned long ); // Displays the total allocated memory
 };
 
 #endif
