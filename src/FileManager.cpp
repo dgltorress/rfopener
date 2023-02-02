@@ -128,7 +128,8 @@ void FileManager::readPaths( std::vector<std::string>& extensions , int depth , 
 				}
 
 				// Ignore if extension whitelist is enabled and the current file's extension does not match any.
-				if( isExtensionWhitelistEnabled == true ){size_t j = 0;
+				if( isExtensionWhitelistEnabled == true ){
+					size_t j = 0;
 					for( j ; j < extensions.size() ; ++j ){
 						if( path.extension().generic_u8string() == extensions[ j ] ) break;
 					}
@@ -137,7 +138,7 @@ void FileManager::readPaths( std::vector<std::string>& extensions , int depth , 
 				}
 
 				// Reads the file path, relative to the working directory, in UTF8 format.
-				std::string relativePathString = std::filesystem::relative( path , directoryPath ).generic_u8string();std::cout<<relativePathString<<"\n";
+				std::string relativePathString = std::filesystem::relative( path , directoryPath ).generic_u8string();
 				relativePathStrings.emplace_back( relativePathString );
 
 				// Count file and path string bytes.
