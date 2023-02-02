@@ -20,7 +20,13 @@ This command will:
 3. **Pick a random path** and **open its corresponding file**.
 4. Ask whether to repeat step 3 (**open another** random file).
 
-There is a **soft cap** of **50000 stored paths** and **8 depth levels** so as to avoid any unwanted mishaps.
+There is a **soft cap** of **50000 stored paths** and **10 depth levels** so as to avoid any unwanted mishaps.
+
+Detailed example: open a random MP4 or WEBM file contained within up to 4 levels of depth inside the `C:\Users\ME\Videos` folder. Allow the program to store more than 50000 (soft cap) relative paths into memory. 
+
+```shell
+rfopener -r "C:\Users\ME\Videos" -e "mp4;webm" -d 4 -nc
+```
 
 ## Usage
 
@@ -30,33 +36,10 @@ Options:
 
 `-h`, `--help` Show help.
 
-`-d`, `--depth` `[DEPTH]` Maximum (inclusive) depth the recursive iterator is allowed to reach. min. 0, max. 8, default 2 (0 equals to the working directory).
+`-r`, `--root` `[DIRECTORY]` ***Relative* or *absolute* path** to the **root directory**. Defaults to the **current working directory**.
 
----
+`-e`, `--extensions` `[extension1;extension2;...;extensionN]` Enables **file extension whitelisting**. Only files that exactly match any of the specified extensions (separated by a *semicolon*) will be taken into account. **Empty strings** are accounted for as well.
 
-`-s`, `--scan` `[DIRECTORY]` (OLD) Recursively scan and store file paths from the specified directory and its subdirectories into a file within said directory.
+`-d`, `--depth` `[DEPTH]` **Maximum (inclusive) levels of depth** the recursive iterator is allowed to reach (min. 0, max. 10, default. 5). 0 equals to the working directory.
 
-`-o`, `--open` `[DIRECTORY]` (OLD) Opens a file corresponding to a random path from an already created scan file located in the specified directory.
-
-`-m`, `--memory` (OLD) Whether to enable Memory Mode, which stores all read paths into memory. Disabled by default.
-
-## Work with files (OLD)
-
-This tool works by performing two steps:
-
-1. **Scan**. It recursively gets the **paths to all files in a directory** and its subdirectories up to a specified depth. It then **dumps the canonical directory path and relative file paths** into a `.txt` file (*scan file*), and the **amount of stored paths** into another file (*size file*).
-
-    Example with the current working directory:
-    ```shell
-    rfopener -s .
-    ```
-
-2. **Open**. It **reads the *scan file*** and randomly picks a path, whose corresponding file is promptly opened. There are currently two ways it can proceed with this task:
-    - **Direct Mode** (*default*). It directly reads the file up to a previously selected line.
-    - **Memory Mode**. It stores all read paths into memory and then picks a random index. Grants constant complexity to subsequent accesses to random files, but cost could potentially be prohibitive.
-
-    Example with the current working directory:
-    ```shell
-    rfopener -o .
-    ```
-
+`-nc`, `--nocap` **Disable soft caps** for storage of relative paths in memory (max. 50000 paths) and depth levels (max. 10 levels). Caps are **enabled by default**.

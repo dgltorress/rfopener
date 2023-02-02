@@ -28,47 +28,39 @@ class FileManager{
         std::ifstream fileRead;  // Read
         std::ofstream fileWrite; // Write
 
-        // Paths
-        std::filesystem::path scanFileDirectoryPath; // Directory where the scan file is located
-        std::filesystem::path scanFilePath;          // Path to the scanned paths file
-        std::filesystem::path scanSizePath;          // Path to the file containing the amount of paths scanned
-        
-        // Paths as strings
-        std::string scanFileDirectoryPathString;     // Directory where the scan file is located
-        std::string scanFilePathString;              // Path to the scanned paths file
-        std::string scanSizePathString;              // Path to the file containing the amount of paths scanned
+        // Directory path.
+        std::filesystem::path directoryPath;
+        std::string directoryPathString;     // as string
 
-        // Given names for files
-        const char* exeFileName = "rfopener.exe";       // Executable
-        const char* scanFileName = "rfopener_scan.txt"; // Scanned paths file
-        const char* scanSizeName = "rfopener_size.txt"; // File containing the amount of paths scanned
+        // Path string vector.
+        std::vector<std::string> relativePathStrings;
 
     public:
+        // Given names for file.
+        const char* exeFileName = "rfopener.exe"; // Executable
+
         // Soft limits and default values
-        static const unsigned int maxPaths = 50000; // Maximum (inclusive) amount of paths allowed to be stored in a single file
-        static const unsigned int minDepth = 0;     // Minimum (inclusive) depth
-        static const unsigned int maxDepth = 8;     // Maximum (inclusive) depth the recursive iterator is allowed to reach
-        static const unsigned int depthDefault = 2; // Default depth the recursive iterator is allowed to reach
+        static const int maxPaths = 50000; // Maximum (inclusive) amount of paths allowed to be stored in a single file
+        static const int minDepth = 0;     // Minimum (inclusive) depth
+        static const int maxDepth = 10;    // Maximum (inclusive) depth the recursive iterator is allowed to reach
+        static const int depthDefault = 5; // Default depth the recursive iterator is allowed to reach
 
         // Constructors
-        FileManager();              // Default
-        FileManager( std::string ); // Parametrized
+        FileManager();               // Default (current directory)
+        FileManager( std::string& ); // Parametrized
 
         // Main functions
-        void readPathsRecursively( std::vector<std::string>& , int ); // Reads paths by iterating recursively and stores them in a vector
-        void readPathsFromFile( std::vector<std::string>& );          // Reads paths from a file and stores them in a vector
-
-        void storePathsRecursively( int = depthDefault );       // Finds and stores file paths
-        void openRandomFilePath();                              // Opens the path on a random line on a file
-        int getSizeFromFile();                                  // Gets the amount of stored paths from the size file
+        bool setWorkingDirectory( std::string& );                        // Sets the working directory
+        void readPaths( std::vector<std::string>& , int , bool = true ); // Reads paths by iterating recursively and stores them in a vector
+        void executeRandomFile();                                        // Executes a file corresponding to a random stored path.
 
         // Other functions
         static std::wstring utf8ToWide( const std::string& ); // Converts a UTF8 string into a wide string
         void executeFile( std::string , bool = false );       // Executes a file
-        int adjustDepth( int );                               // Adjusts a depth value
+        int adjustDepth( int , bool = true );                 // Adjusts a depth value
 
-        void displayFileCounts( unsigned int , unsigned int );                              // Displays the amount of scanned files and distinct directories
-        void displayAllocatedMemory(  std::vector<std::string>& , size_t , unsigned long ); // Displays the total allocated memory
+        void displayFileCounts( unsigned int , unsigned int ); // Displays the amount of scanned files and distinct directories
+        void displayAllocatedMemory( size_t , unsigned long ); // Displays the total allocated memory for the strings in bytes
 };
 
 #endif

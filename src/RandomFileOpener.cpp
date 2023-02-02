@@ -1,118 +1,127 @@
 // RandomFileOpener.cpp : main file for the Random File Opener app for Windows
 // @author Daniel Giménez López-Torres
+//
+// Compiled with Visual Studio Community 2022 (C++17)
 
 #include <iostream>      /* console IO */
 #include <windows.h>     /* Windows API functions */
 #include <string>        /* strings */
+#include <sstream>       /* stringstream for splitting */
 #include <vector>        /* dynamic containers */
-
-#include <stdlib.h>      /* srand, rand */
-#include <time.h>        /* time */
+#include <filesystem>    /* navigate through files */
 
 #include "termcolor.h"   /* easy console colors, available at https://github.com/ikalnytskyi/termcolor */
 
 #include "FileManager.h" 
 
 // Function declarations
-void defaultAction( std::vector<std::string>& , int );
-void scanAction( std::string& , int );
-void openAction( std::string& , std::vector<std::string>& , bool );
+void defaultAction( std::string& , std::vector<std::string>& , int , bool = true );
 void showUsage( const char* );
 
-// Enumerates actions.
-enum Action{ xDefault = 0 , xOpen = 1 , xScan = 2 , xNone = -1 };
+// Global constant data
+enum Actions{ xDefault = 0 , xHelp = 1 };
+const struct Flags{
+    const struct Shortened{
+        const char* help       = "-h";
+        const char* root       = "-r";
+        const char* extensions = "-e";
+        const char* depth      = "-d";
+        const char* nocap      = "-nc";
+    } shortened;
+    const struct Whole{
+        const char* help       = "--help";
+        const char* root       = "--root";
+        const char* extensions = "--extensions";
+        const char* depth      = "--depth";
+        const char* nocap      = "--nocap";
+    } whole;
+} flags;
+const char extensionDelimiter = ';';
 
 /**
 * @brief main
 */
 int main( int argc , char* argv[] ) {
     // Displays app name and version.
-    std::cout << termcolor::bright_green << "\nRandom File Opener v1.0.1\n\n" << termcolor::reset;
-
-    // Initializes random seed.
-    srand( (unsigned int)time( NULL ) );
+    std::cout << termcolor::bright_green << "\nRandom File Opener v1.1.0\n\n" << termcolor::reset;
 
     // Declares and initializes variables.
-    int action = xNone;                // Default action to take. None by default.
-    int depth = -1;                    // Depth to iterate to. Undefined (invalid value) by default.
-    std::string scanFileDirectoryPath; // Path to the scanned paths file.
-    bool memoryMode = false;           // Whether memory mode is enabled. Disables by default.
+    std::string directoryPathString;       // Path to the root directory as a string.
+    std::vector<std::string> extensions;   // Extension whitelist.
+    int depth = FileManager::depthDefault; // Maximum depth to iterate to.
+    bool areCapsEnabled = true;            // Whethter soft caps are enabled.
+    
+    int action = xDefault; // Action to perform.
 
-    std::vector<std::string> paths;    // Path string vector.
+    // Parse arguments.
+    std::string arg;
+    for( int i = 1 ; i < argc ; ++i ){
+        // Get current argument.
+        arg = argv[ i ];
 
-    // Argument check
-    if( argc <= 1 ){
-        action = xDefault;
-    }
-    else{
-        std::string arg;
-
-        // Parse arguments.
-        for( int i = 1 ; i < argc ; ++i ){
-            arg = argv[i];
-
-            // Help (usage)
-            if( ( arg == "-h" ) || ( arg == "--help" ) ){
-                showUsage( argv[0] );
-                return 0;
-            }
-            // Enable memory mode (store all paths in memory instead of looping every time)
-            if( ( arg == "-m" ) || ( arg == "--memory" ) ){
-                memoryMode = true;
-            }
-            // Scan depth.
-            else if( ( arg == "-d" ) || ( arg == "--depth" ) ){
-                try {
-                    if ( ( ++i >= argc ) ) throw std::invalid_argument( "Depth is not a valid integer" );
-                    depth = std::stoi( argv[i] );
+        // Help (show usage).
+        if( ( arg == flags.shortened.help ) || ( arg == flags.whole.help ) ){
+            action = xHelp;
+        }
+        // Set root directory.
+        else if( ( arg == flags.shortened.root ) || ( arg == flags.whole.root ) ){
+            try{
+                if( ( ++i >= argc ) ){
+                    throw std::invalid_argument( "No path for the root directory was provided" );
                 }
-                catch (const std::exception& ex) {
-                    std::cerr << termcolor::bright_red << ex.what() << termcolor::reset << std::endl;
-                    exit( EXIT_FAILURE );
+                else if( !( std::filesystem::exists( argv[ i ] ) ) ){
+                    throw std::invalid_argument( "The provided path for the root directory is not valid." );
                 }
+                directoryPathString = argv[ i ];
+            } catch( const std::exception& ex ){
+                std::cerr << termcolor::bright_red << "ERROR resolving path for the root directory:\n" << ex.what() << termcolor::reset << std::endl;
+                exit( EXIT_FAILURE );
             }
-            // Try to set actions if none of the above.
-            else{
-                // Only if unset.
-                if( action == xNone ) {
-                    // Scan (store recursive file names)
-                    if( ( arg == "-s" ) || ( arg == "--scan" ) ){
-                        action = xScan;
-                    }
-                    // Open (open a random file from the list)
-                    else if( ( arg == "-o" ) || ( arg == "--open" ) ){
-                        action = xOpen;
-                    }
+        }
+        // Enable extension whitelisting and provide matches. An empty string counts as an extension.
+        else if( ( arg == flags.shortened.extensions ) || ( arg == flags.whole.extensions ) ){
+            try{
+                if( ( ++i >= argc ) ){
+                    throw std::invalid_argument( "Extension whitelisting was enabled, but no extensions were provided" );
+                }
 
-                    // Gets directory if an action is to be performed
-                    if( action != xNone ){
-                        try{
-                            if( ( ++i >= argc ) ||
-                                !( std::filesystem::exists( argv[i] ) ) ){
-                                throw std::invalid_argument( "The provided scan file path is not valid. Try placing it between quotation marks such as: \"C:\\...\"" );
-                            }
-                        } catch( const std::exception& ex ){
-                            std::cerr << termcolor::bright_red << "ERROR enabling file IO:\n" << ex.what() << termcolor::reset << std::endl;
-                            exit( EXIT_FAILURE );
-                        }
-                        scanFileDirectoryPath = argv[i];
-                    }
+                // Split string into individual extensions.
+                // Include a dot at the beginning for std::filesystem::path::extension compatibility.
+                std::string temp;
+                std::stringstream stringstream { argv[ i ] };
+                while( std::getline( stringstream , temp , extensionDelimiter ) ){
+                    extensions.emplace_back( '.' + temp );
                 }
+            } catch( const std::exception& ex ){
+                std::cerr << termcolor::bright_red << "ERROR while whitelisting extensions:\n" << ex.what() << termcolor::reset << std::endl;
+                exit( EXIT_FAILURE );
             }
+        }
+        // Set maximum depth.
+        else if( ( arg == flags.shortened.depth ) || ( arg == flags.whole.depth ) ){
+            try{
+                if ( ( ++i >= argc ) ) throw std::invalid_argument( "No depth was provided" );
+                depth = std::stoi( argv[ i ] );
+            } catch( const std::exception& ex ){
+                std::cerr << termcolor::bright_red << "ERROR while establishing maximum depth:\n" << ex.what() << termcolor::reset << std::endl;
+                exit( EXIT_FAILURE );
+            }
+        }
+        // Disable soft caps.
+        else if( ( arg == flags.shortened.nocap ) || ( arg == flags.whole.nocap ) ){
+            areCapsEnabled = false;
         }
     }
 
     // Performs an action if it was specified.
     switch( action ){
         // Default action
-        case xDefault: defaultAction( paths , depth ); break; 
-        // Scan paths.
-        case xScan: scanAction( scanFileDirectoryPath , depth ); break;
-        // Open file.
-        case xOpen: openAction( scanFileDirectoryPath , paths , memoryMode ); break;
+        case xDefault: defaultAction( directoryPathString , extensions , depth, areCapsEnabled ); break;
+        // Help
+        case xHelp: showUsage( argv[ 0 ] ); break;
 
         // None.
-        default: showUsage( argv[0] ); break;
+        default: break;
     }
 
     return EXIT_SUCCESS;
@@ -121,12 +130,12 @@ int main( int argc , char* argv[] ) {
 /**
 * @brief Performs the default action (recursively iterates and stores the canonical paths into memory).
 */
-void defaultAction( std::vector<std::string>& paths , int depth ){
-    // Instantiates a file manager in the current directory.
-    FileManager fileManager;
+void defaultAction( std::string& directoryPathString , std::vector<std::string>& extensions , int depth , bool checkCaps ){
+    // Instantiates a file manager in the current directory or, if provided, a different one.
+    FileManager fileManager = FileManager( directoryPathString );
 
     // Read ALL of the paths recursively into memory.
-    fileManager.readPathsRecursively( paths , depth );
+    fileManager.readPaths( extensions , depth, checkCaps );
 
     // Loop variables.
     std::string openAgain = "n";
@@ -136,66 +145,7 @@ void defaultAction( std::vector<std::string>& paths , int depth ){
     // Open files until explicitly told otherwise.
     do{
         // Executes a random file.
-        fileManager.executeFile( paths[ ( rand() % ( paths.size() - 1 ) ) + 1 ] ); // Cannot pick the first line
-
-        // Asks whether to open another file.
-        do{
-            std::cout << "Open another file? (y/n): ";
-            std::cin >> openAgain;
-
-            // Checks the answer.
-            if( ( openAgain == "y" ) || ( openAgain == "Y" ) ){
-                exit = false;
-                validOption = true;
-            }
-            else if( ( openAgain == "n" ) || ( openAgain == "N" ) ){
-                exit = true;
-                validOption = true;
-            }
-            else validOption = false;
-        } while( validOption == false );
-        
-    } while( exit == false );
-}
-
-/**
-* @brief Performs the scan action.
-*/
-void scanAction( std::string& scanFileDirectoryPath , int depth ){
-    // Instantiates a file manager.
-    FileManager fileManager = FileManager( scanFileDirectoryPath );
-
-    // Recursively scans and stores the file paths whether a preferred depth has been provided.
-    fileManager.storePathsRecursively( depth );
-}
-
-/**
-* @brief Performs the scan action.
-*/
-void openAction( std::string& scanFileDirectoryPath , std::vector<std::string>& paths , bool memoryMode ){
-    // Instantiates a file manager.
-    FileManager fileManager = FileManager( scanFileDirectoryPath );
-
-    // [Memory Mode] Stores all paths into memory. cost could potentially be prohibitive.
-    if( memoryMode == true ){
-        // Displays the memory mode prompt.
-        std::cout << termcolor::magenta << "Memory mode enabled." << termcolor::reset <<
-            " Paths will be stored in memory instead of the file being looped every time.\n";
-
-        // Read ALL of the paths already stored in a file into memory.
-        fileManager.readPathsFromFile( paths );
-    }
-
-    // Loop variables.
-    std::string openAgain = "n";
-    bool exit = false;
-    bool validOption = false;
-
-    // Open files until explicitly told otherwise.
-    do{
-        // Selects a random path from memory or opens the file and reads up to a random path.
-        if( memoryMode == true ) fileManager.executeFile( paths[ ( rand() % ( paths.size() - 1 ) ) + 1 ] ); // Cannot pick the first line
-        else                     fileManager.openRandomFilePath();
+        fileManager.executeRandomFile(  );
 
         // Asks whether to open another file.
         do{
@@ -224,21 +174,31 @@ void showUsage( const char* name ){
     std::cerr << "Usage: " << termcolor::bright_blue << name << termcolor::reset << " [" << termcolor::bright_yellow << "-opts" << termcolor::reset << "]\n\n"
               << "Options:\n"
 
-              << termcolor::bright_yellow << "-h" << termcolor::reset << "," << termcolor::bright_yellow << " --help" << termcolor::reset
+              << termcolor::bright_yellow << flags.shortened.help << termcolor::reset << ", " << termcolor::bright_yellow << flags.whole.help << termcolor::reset
                   << "\t\tShow this help message.\n"
 
-              << termcolor::bright_yellow << "-s" << termcolor::reset << "," << termcolor::bright_yellow << " --scan" << termcolor::reset
+              << termcolor::bright_yellow << flags.shortened.root << termcolor::reset << ", " << termcolor::bright_yellow << flags.whole.root << termcolor::reset
               << " [" << termcolor::bright_cyan << "DIRECTORY" << termcolor::reset << "]"
-                  << "\t\tRecursively scan and store file paths from the specified directory and its subdirectories into a file within said directory.\n"
+                  << "\t\tRelative or absolute path to the root directory. Defaults to the current working directory.\n"
 
-              << termcolor::bright_yellow << "-d" << termcolor::reset << "," << termcolor::bright_yellow << " --depth" << termcolor::reset
+              << termcolor::bright_yellow << flags.shortened.extensions << termcolor::reset << ", " << termcolor::bright_yellow << flags.whole.extensions << termcolor::reset
+              << " [" << termcolor::bright_cyan << "extension1" << termcolor::reset << ";"
+                      << termcolor::bright_cyan << "extension2" << termcolor::reset << ";...;"
+                      << termcolor::bright_cyan << "extensionN" << termcolor::reset << "]"
+                  << "\t\tEnables file extension whitelisting. Only files that exactly match any of the specified extensions (separated by a semicolon) will be taken into account.\n"
+
+              << termcolor::bright_yellow << flags.shortened.depth << termcolor::reset << ", " << termcolor::bright_yellow << flags.whole.depth << termcolor::reset
               << " [" << termcolor::bright_cyan << "DEPTH" << termcolor::reset << "]"
-                  << "\t\tMaximum (inclusive) depth the recursive iterator is allowed to reach. min. " << FileManager::minDepth << ", max. " << FileManager::maxDepth << ", default " << FileManager::depthDefault << " (0 equals to the working directory).\n"
-
-              << termcolor::bright_yellow << "-o" << termcolor::reset << "," << termcolor::bright_yellow << " --open" << termcolor::reset
-              << " [" << termcolor::bright_cyan << "DIRECTORY" << termcolor::reset << "]"
-                  << "\t\tOpens a file corresponding to a random path from an already created scan file located in the specified directory.\n"
+                  << "\t\tMaximum (inclusive) levels of depth the recursive iterator is allowed to reach (min. "
+                  << termcolor::bright_cyan << FileManager::minDepth     << termcolor::reset << ", max. "
+                  << termcolor::bright_cyan << FileManager::maxDepth     << termcolor::reset << ", default. "
+                  << termcolor::bright_cyan << FileManager::depthDefault << termcolor::reset
+                  << "). 0 equals to the working directory.\n"
               
-              << termcolor::bright_yellow << "-m" << termcolor::reset << "," << termcolor::bright_yellow << " --memory" << termcolor::reset
-                  << "\t\tWhether to enable Memory Mode, which stores all read paths into memory. Grants constant complexity to subsequent accesses to random files, but cost could potentially be prohibitive. Disabled by default.\n\n";
+              << termcolor::bright_yellow << flags.shortened.nocap << termcolor::reset << ", " << termcolor::bright_yellow << flags.whole.nocap << termcolor::reset
+                  << "\t\tDisable soft caps for storage of relative paths in memory (max. "
+                  << termcolor::bright_cyan << FileManager::maxPaths << termcolor::reset
+                  << " paths) and depth levels (max. "
+                  << termcolor::bright_cyan << FileManager::maxDepth << termcolor::reset
+                  << " levels). Caps are enabled by default.\n\n";
 }

@@ -6,19 +6,9 @@
 * @brief Constructor.
 */
 FileManager::FileManager(){
-	// Gets the current path.
-	try{
-        scanFileDirectoryPath = std::filesystem::current_path();
-    }
-    catch( const std::exception& ex ){
-        std::cerr << termcolor::bright_red << "Current path path threw exception:\n" << ex.what() << termcolor::reset << std::endl;
-		exit( EXIT_FAILURE );
-    }
-
-	// Initializes the string paths.
-	scanFileDirectoryPathString = scanFileDirectoryPath.generic_u8string() + "/"; // Directory where the scan file is located
-	scanFilePathString = scanFileDirectoryPathString + scanFileName;			  // Path to the scanned paths file
-	scanSizePathString = scanFileDirectoryPathString + scanSizeName;			  // Path to the file containing the amount of paths scanned
+	// Set the working directory.
+	std::string emptyString;
+	if( setWorkingDirectory( emptyString ) == false ) exit( EXIT_FAILURE );
 
 	// Initializes a random seed.
     srand( (unsigned int)time( NULL ) );
@@ -27,41 +17,71 @@ FileManager::FileManager(){
 /**
 * @brief Parametrized constructor.
 * 
-* @param {p_scanFileDirectoryPathString} Absolute or relative path where the target directory is located.
+* @param {unprocessedDirectoryPathString} Absolute or relative path where the target directory is located.
 */
-FileManager::FileManager( std::string p_scanFileDirectoryPathString ){
+FileManager::FileManager( std::string& unprocessedDirectoryPathString ){
 	// Gets the canonical path to the specified directory.
-	try{
-        scanFileDirectoryPath = std::filesystem::canonical( p_scanFileDirectoryPathString );
-    }
-    catch( const std::exception& ex ){
-        std::cerr << termcolor::bright_red << "Canonical path (" << termcolor::bright_cyan <<
-			p_scanFileDirectoryPathString << termcolor::bright_red << ") threw exception:\n" << ex.what() << termcolor::reset << std::endl;
-		exit( EXIT_FAILURE );
-    }
-	
-	// Initializes the string paths.
-	scanFileDirectoryPathString = scanFileDirectoryPath.generic_u8string() + "/"; // Directory where the scan file is located
-	scanFilePathString = scanFileDirectoryPathString + scanFileName;			  // Path to the scanned paths file
-	scanSizePathString = scanFileDirectoryPathString + scanSizeName;			  // Path to the file containing the amount of paths scanned
+	if( setWorkingDirectory( unprocessedDirectoryPathString ) == false ) exit( EXIT_FAILURE );
 
 	// Initializes a random seed.
     srand( (unsigned int)time( NULL ) );
 }
 
 /**
+* @brief Sets the working directory.
+* 
+* @param {unprocessedDirectoryPathString} Absolute or relative path where the target directory is located.
+*/
+bool FileManager::setWorkingDirectory( std::string& unprocessedDirectoryPathString ){
+	try{
+		// Sets the working directory as the current path if no directory was provided, and the canonical path if it was.
+        directoryPath = ( unprocessedDirectoryPathString.empty() ) ? std::filesystem::current_path() :
+			                                                         std::filesystem::canonical( unprocessedDirectoryPathString ) ;
+    }
+    catch( const std::exception& ex ){
+		std::cerr << termcolor::bright_red << "Resolving path \"" << termcolor::bright_cyan <<
+			unprocessedDirectoryPathString << termcolor::bright_red << "\" threw exception:\n" << ex.what() << termcolor::reset << std::endl;
+        return false;
+    }
+	
+	// Initializes the string path.
+	directoryPathString = directoryPath.generic_u8string() + "/";
+
+	return true;
+}
+
+/**
 * @brief Reads paths by iterating recursively and stores them into memory.
 * 
-* @param {paths} Path vector (up to `maxPaths` elements will be stored).
+* @param {extensions} Extension whitelist that will be checked for every file. If empty, no checks will be performed.
+* @param {depth} Maximum depth that the recursive iterator is allowed to reach. Will be validated beforehand.
+* @param {checkCaps} Whether to enable soft caps. Defaults to true.
 */
-void FileManager::readPathsRecursively( std::vector<std::string>& paths , int depth ){
+void FileManager::readPaths( std::vector<std::string>& extensions , int depth , bool checkCaps ){
+	// Clears the vector.
+	relativePathStrings.clear();
+
+	// Determines whether an extension whitelist must be checked.
+	bool isExtensionWhitelistEnabled = ( extensions.size() > 0 );
+
 	// Validates (and adjusts, if necessary) depth value.
 	depth = adjustDepth( depth );
 
 	// Displays relevant directories and files.
-	std::cout << "\nWorking directory: " << termcolor::bright_cyan << scanFileDirectoryPathString << termcolor::reset <<
-		"\nDepth: " << termcolor::bright_cyan << depth << termcolor::reset <<
-		"\n\n====================================================================================\n\n";
+	std::cout << "\nWorking directory: " << termcolor::bright_cyan << directoryPathString << termcolor::reset
+		<< "\nDepth: " << termcolor::bright_cyan << depth << termcolor::reset;
+
+	if( isExtensionWhitelistEnabled == true ){
+		std::cout << "\nExtension whitelist: " << termcolor::bright_cyan;
+		int i = 0;
+		while( i < extensions.size() ){
+			std::cout << extensions[ i ];
+			if( ++i < extensions.size() ) std::cout << termcolor::reset << ", " << termcolor::bright_cyan;
+		}
+		std::cout << termcolor::reset;
+	}
+
+	std::cout << "\n\n====================================================================================\n\n";
 
 	// Initializes counters.
 	unsigned int fileCount = 0;
@@ -70,18 +90,30 @@ void FileManager::readPathsRecursively( std::vector<std::string>& paths , int de
 	unsigned long byteCount = 0;
 	size_t vectorSize = 0;
 
-	// Stores the working directory.
-	paths.emplace_back( scanFileDirectoryPathString );
-
 	try{
 		// Recursively iterates through the working directory.
-		for( std::filesystem::recursive_directory_iterator i = std::filesystem::recursive_directory_iterator( scanFileDirectoryPathString );
+		for( std::filesystem::recursive_directory_iterator i = std::filesystem::recursive_directory_iterator( directoryPath );
 		     i != std::filesystem::recursive_directory_iterator();
 		     ++i ){
+			// If not disabled, check if path storage limit has been exceeded.
+			if( ( checkCaps == true ) &&
+				( fileCount >= maxPaths ) ){
+				std::cout << termcolor::bright_yellow << "\n\nSoft cap for file paths ("
+					<< termcolor::bright_cyan << maxPaths << termcolor::bright_yellow
+					<< ") has been reached. Disable cap checking with flag -nc or --nocap" << termcolor::reset << "\n\n";
+				break;
+			}
+
+			// Get the path of the current file.
+			std::filesystem::path path = i->path();
+
+			// Get the current depth.
+			int currentDepth = i.depth();
+
 			// Do not list directories.
-			if( std::filesystem::is_directory( i->path() ) ){
+			if( std::filesystem::is_directory( path ) ){
 				// Do not go deeper than specified.
-				if( i.depth() >= depth ) {
+				if( currentDepth >= depth ) {
 					i.disable_recursion_pending();
 				}
 				// Count directory.
@@ -89,256 +121,71 @@ void FileManager::readPathsRecursively( std::vector<std::string>& paths , int de
 			}
 			// Do list files.
 			else{
-				// Ignore this executable.
-				if( i.depth() == 0 ){
-					std::string fileName = i->path().filename().generic_u8string();
-					if ( fileName == exeFileName ) {
-						continue;
+				// Ignore if it the path points to this executable.
+				if( ( currentDepth == 0 ) &&
+					( path.filename().generic_u8string() == exeFileName ) ){
+					continue;
+				}
+
+				// Ignore if extension whitelist is enabled and the current file's extension does not match any.
+				if( isExtensionWhitelistEnabled == true ){size_t j = 0;
+					for( j ; j < extensions.size() ; ++j ){
+						if( path.extension().generic_u8string() == extensions[ j ] ) break;
 					}
+
+					if( j == extensions.size() ) continue;
 				}
 
 				// Reads the file path, relative to the working directory, in UTF8 format.
-				std::string relativePath = std::filesystem::relative( i->path() , scanFileDirectoryPath ).generic_u8string();
-				paths.emplace_back( relativePath );
+				std::string relativePathString = std::filesystem::relative( path , directoryPath ).generic_u8string();std::cout<<relativePathString<<"\n";
+				relativePathStrings.emplace_back( relativePathString );
 
 				// Count file and path string bytes.
 				++fileCount;
-				byteCount += (unsigned long)relativePath.size();
+				byteCount += (unsigned long)relativePathString.size();
 			}
 		}
 	} catch( const std::exception& ex ){
-	    std::cerr << termcolor::bright_red << "ERROR while storing paths:\n" << ex.what() << termcolor::reset << "\n";
+	    std::cerr << termcolor::bright_red << "ERROR while reading paths into memory:\n" << ex.what() << termcolor::reset << "\n";
 		exit( EXIT_FAILURE );
 	}
 	
-	// Calculates and displays the size of reserved variables.
-	vectorSize = sizeof( std::vector<std::string> ) + ( sizeof( std::string ) * paths.size() );
-	displayAllocatedMemory( paths , vectorSize , byteCount );
+	// Calculates and displays the size of path strings in memory.
+	vectorSize = sizeof( std::vector<std::string> ) + ( sizeof( std::string ) * relativePathStrings.size() );
+	displayAllocatedMemory( vectorSize , byteCount );
 
-	// Displays final counts.
+	// Displays final file and directory counts.
 	displayFileCounts( fileCount , directoryCount );
 }
 
 /**
-* @brief Reads all paths from a file and stores them into memory.
-* 
-* @param {paths} Path vector (up to `maxPaths` elements will be stored).
+* @brief Executes a random file.
 */
-void FileManager::readPathsFromFile( std::vector<std::string>& paths ){
-	try {
-		// Gets the amount of stored paths.
-		int numberOfPaths = getSizeFromFile();
-
-		// Validates the number of paths.
-		if( numberOfPaths == -1 ){
-			std::cerr << termcolor::bright_red << "Invalid path amount\n" << termcolor::reset << "\n";
-			exit( EXIT_FAILURE );
-		}
-
-		// Reserves vector space.
-		paths.reserve( ( numberOfPaths < maxPaths ) ? numberOfPaths : maxPaths );
-
-
-		// Declares variables and counters.
-		unsigned int i = 0;
-		unsigned long byteCount = 0;
-		size_t vectorSize = 0;
-
-		// Opens the size file in read mode.
-		fileRead.open( scanFilePathString );
-
-		// Read paths into the passed vector.
-		std::string line;
-		while( ( i++ < maxPaths ) &&
-			( std::getline( fileRead,line ) ) ){
-			paths.emplace_back( line );
-			byteCount += (unsigned long)line.size();
-		}
-
-		// Calculates and displays the size of reserved variables.
-		vectorSize = sizeof( std::vector<std::string> ) + ( sizeof( std::string ) * paths.size() );
-		displayAllocatedMemory( paths , vectorSize , byteCount );
-
-		// Closes the scan file.
-		fileRead.close();
-	} catch( const std::exception& ex ){
-	    std::cerr << termcolor::bright_red << "Error opening file from stored path:\n" << ex.what() << termcolor::reset << "\n";
-		exit( EXIT_FAILURE );
+void FileManager::executeRandomFile(){
+	if( relativePathStrings.size() > 0 ){
+		executeFile( relativePathStrings[ rand() % relativePathStrings.size() ] );
 	}
-}
-
-/**
-* @brief Iterates over every file in the working directory and its subdirectories
-* up to the specified depth and stores their paths.
-* 
-* Soft limit is `maxPaths` files and `maxDepth` levels of depth.
-* 
-* @param {depth} Maximum (inclusive) depth the recursive iterator is allowed to reach. 2 by default (working directory is 0).
-*/
-void FileManager::storePathsRecursively( int depth ){
-	// Validates (and adjusts, if necessary) depth value.
-	depth = adjustDepth( depth );
-
-	// Displays relevant directories and files.
-	std::cout << "\nWorking directory: " << termcolor::bright_cyan << scanFileDirectoryPathString << termcolor::reset <<
-		"\nScan file: " << termcolor::bright_cyan << scanFilePathString << termcolor::reset <<
-		"\nSize file: " << termcolor::bright_cyan << scanSizePathString << termcolor::reset <<
-		"\nDepth: " << termcolor::bright_cyan << depth << termcolor::reset <<
-		"\n\n====================================================================================\n\n";
-
-	// Initializes counters.
-	unsigned int fileCount = 0;
-	unsigned int directoryCount = 0;
-
-	try{
-		// Checks if the scan file already exists (skips the size file, as they are assumed to go together)
-		std::ifstream test( scanFilePathString );
-		if( !test ){
-			std::cout << termcolor::bright_yellow << "\nThe file " << termcolor::bright_cyan <<
-				scanFilePathString << termcolor::bright_yellow << " does not exist and will be created" << termcolor::reset << "\n";
-		}
-
-		// Opens the scan file in write mode.
-		fileWrite.open( scanFilePathString );
-
-		// Writes the canonical path to the working directory into the first line.
-		fileWrite << scanFileDirectoryPathString << "\n";
-
-		// Recursively iterates through the working directory.
-		for( std::filesystem::recursive_directory_iterator i = std::filesystem::recursive_directory_iterator( scanFileDirectoryPathString );
-		     i != std::filesystem::recursive_directory_iterator();
-		     ++i ){
-			// Do not list directories.
-			if( std::filesystem::is_directory( i->path() ) ){
-				// Do not go deeper than specified.
-				if( i.depth() >= depth ) {
-					i.disable_recursion_pending();
-				}
-				// Count directory.
-				++directoryCount;
-			}
-			// Do list files.
-			else{
-				// Executable (if not on PATH variable) and scan files do not get stored.
-				if( i.depth() == 0 ){
-					std::string fileName = i->path().filename().generic_u8string();
-					if ( fileName == exeFileName || 
-						 fileName == scanFileName || 
-						 fileName == scanSizeName ) {
-						continue;
-					}
-				}
-
-				// Stores the file path, relative to the working directory, in UTF8 format.
-				fileWrite << std::filesystem::relative( i->path() , scanFileDirectoryPath ).generic_u8string() << "\n";
-
-				// Count file.
-				++fileCount;
-			}
-		}
-		// Closes the scan file.
-		fileWrite.close();
-
-		// Stores the amount of paths into another file.
-		// (grants constant complexity that helps reserve vector slots in memory mode and randomize a line in direct read mode).
-		fileWrite.open( scanSizePathString );
-		fileWrite << fileCount;
-		fileWrite.close();
-	} catch( const std::exception& ex ){
-	    std::cerr << termcolor::bright_red << "ERROR while storing paths:\n" << ex.what() << termcolor::reset << "\n";
-		exit( EXIT_FAILURE );
+	else{
+		std::cerr << termcolor::bright_red << "No paths have been stored into memory\n" << termcolor::reset;
 	}
-
-	// Displays final counts.
-	displayFileCounts( fileCount , directoryCount );
-}
-
-/**
-* @brief Directly reads a random path from a file (read every time approach).
-* Paths are expected to be separated by newline characters.
-*/
-void FileManager::openRandomFilePath(){
-	try {
-		// Gets the amount of stored paths.
-		int numberOfPaths = getSizeFromFile();
-
-		// Validates the number of paths.
-		if( numberOfPaths == -1 ){
-			std::cerr << termcolor::bright_red << "Invalid path amount\n" << termcolor::reset << "\n";
-			exit( EXIT_FAILURE );
-		}
-
-		// Picks a random line.
-		int pathNo = rand() % numberOfPaths; // integer in the range 0 to the amount of paths
-
-
-		// Opens the scan file in read mode.
-		fileRead.open( scanFilePathString );
-
-		// Moves the iterator to the specified line.
-		for( int i = 0 ; i < pathNo + 1 ; ++i ){
-		    fileRead.ignore( std::numeric_limits<std::streamsize>::max() , '\n' );
-		}
-		
-		// Gets the line and executes de file.
-		std::string line;
-		if( std::getline( fileRead , line ) ) executeFile( line );
-
-		// Closes the scan file.
-		fileRead.close();
-	} catch( const std::exception& ex ){
-	    std::cerr << termcolor::bright_red << "Error opening file from stored path:\n" << ex.what() << termcolor::reset << "\n";
-		exit( EXIT_FAILURE );
-	}
-}
-
-/**
-* @brief Gets the amount of stored paths from the size file.
-*/
-int FileManager::getSizeFromFile() {
-	int numberOfPaths = -1;
-
-	try {
-		// Opens the size file in read mode.
-		fileRead.open( scanSizePathString );
-		
-		// Reads the size into an integer.
-		std::string line;
-		
-		if ( std::getline( fileRead,line ) ) {
-			numberOfPaths = std::stoi( line );
-		}
-
-		// Closes the size file.
-		fileRead.close();
-
-		// Validates the number of paths.
-		if( numberOfPaths < 1 ){
-			throw std::invalid_argument( "Invalid path amount" );
-		}
-	} catch( const std::exception& ex ){
-		std::cerr << termcolor::bright_red << "ERROR:\n" << ex.what() << termcolor::reset << "\n";
-		numberOfPaths = -1;
-	}
-
-	return numberOfPaths;
 }
 
 /**
 * @brief Executes a file.
 * 
+* @param {unprocessedPathString} The unprocessed relative or canonical path as a string.
 * @param {canonical} Whether the provided path is canonical (defaults to false - paths are assumed relative).
 */
-void FileManager::executeFile( std::string pathString , bool canonical ){
+void FileManager::executeFile( std::string unprocessedPathString , bool canonical ){
 	// Constructs the path.
-	std::string filePath;
-	if( canonical == true ) filePath = pathString;
-	else                    filePath = scanFileDirectoryPathString + pathString;
+	std::string pathString;
+	if( canonical == true ) pathString = unprocessedPathString;
+	else                    pathString = directoryPathString + unprocessedPathString;
 		 
-	std::wstring wideFilePath = FileManager::utf8ToWide( filePath );
+	std::wstring wideFilePath = FileManager::utf8ToWide( pathString );
 	
 	// Displays the path.
-	std::cout << "Opening " << termcolor::bright_cyan << filePath << termcolor::reset << " ...\n";
+	std::cout << "Opening " << termcolor::bright_cyan << pathString << termcolor::reset << " ...\n";
 	
 	// Tries to open the file corresponding to the path.
 	ShellExecuteW( 0 , 0 , wideFilePath.c_str() , 0 , 0 , SW_SHOW );
@@ -358,11 +205,22 @@ std::wstring FileManager::utf8ToWide( const std::string& str ){
 * @brief Adjusts a depth value.
 * 
 * @param {depth} Initial depth.
+* @param {checkCaps} Whether to check for the soft cap for the levels of depth while adjusting.
 */
-int FileManager::adjustDepth( int depth ){
-	if( ( depth < minDepth ) || ( depth > maxDepth ) ) return depthDefault;
-	else                                               return depth;
-};
+int FileManager::adjustDepth( int depth , bool checkCaps ){
+	if( ( depth < minDepth ) ){
+		return depthDefault;
+	}
+	else if( ( checkCaps == true ) &&
+		     ( depth > maxDepth ) ){
+		std::cout << termcolor::bright_yellow << "\n\nSoft cap for depth ("
+			<< termcolor::bright_cyan << maxDepth << termcolor::bright_yellow
+			<< ") has been reached. Disable cap checking with flag -nc or --nocap" << termcolor::reset << "\n\n";
+
+		return maxDepth;
+	}
+	else return depth;
+}
 
 /**
 * @brief Displays the amount of scanned files and distinct directories.
@@ -379,13 +237,12 @@ void FileManager::displayFileCounts( unsigned int fileCount , unsigned int direc
 /**
 * @brief Displays the total allocated memory.
 * 
-* @param {paths} Relative path vector.
 * @param {vectorSize} Vector size in bytes.
 * @param {byteCount} Bytes of allocated strings.
 */
-void FileManager::displayAllocatedMemory( std::vector<std::string>& paths , size_t vectorSize , unsigned long byteCount ){
+void FileManager::displayAllocatedMemory( size_t vectorSize , unsigned long byteCount ){
 	std::cout << "\nSize of vector: "
-		<< termcolor::bright_cyan << vectorSize << " bytes" << termcolor::reset << " (" << termcolor::bright_cyan << paths.size() << " elements" << termcolor::reset << ")\n";
+		<< termcolor::bright_cyan << vectorSize << " bytes" << termcolor::reset << " (" << termcolor::bright_cyan << relativePathStrings.size() << " elements" << termcolor::reset << ")\n";
 	std::cout << "Combined size of dynamically allocated strings: "
 		<< termcolor::bright_cyan << byteCount << " bytes" << termcolor::reset << "\n\n";
 
