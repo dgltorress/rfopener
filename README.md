@@ -15,7 +15,7 @@ rfopener
 at the **directory that contains your pool of files** (whether they be in the root directory or any subdirectory).
 
 This command will:
-1. **Recursively iterate** through the working directory and its subdirectories up to the specified depth (`-d`, defaults to 2).
+1. **Recursively iterate** through the working directory and its subdirectories up to the specified depth.
 2. **Store** each path **into memory**.
 3. **Pick a random path** and **open its corresponding file**.
 4. Ask whether to repeat step 3 (**open another** random file).
