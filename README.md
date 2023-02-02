@@ -22,7 +22,7 @@ This command will:
 
 There is a **soft cap** of **50000 stored paths** and **10 depth levels** so as to avoid any unwanted mishaps.
 
-Detailed example: open a random MP4 or WEBM file contained within up to 4 levels of depth inside the `C:\Users\ME\Videos` folder. Allow the program to store more than 50000 (soft cap) relative paths into memory. 
+**Detailed example**: open a random MP4 or WEBM file contained within up to 4 (inclusive) levels of depth inside the `C:\Users\ME\Videos` folder. Allow the program to store more than 50000 (soft cap) relative paths into memory. 
 
 ```shell
 rfopener -r "C:\Users\ME\Videos" -e "mp4;webm" -d 4 -nc
