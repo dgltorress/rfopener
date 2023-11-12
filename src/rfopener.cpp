@@ -20,7 +20,7 @@
 #include "Keys.h"
 #include "FileManager.h"
 
-static const char* VERSION = "2.0.0";
+static const char* VERSION = "2.1.0";
 
 // Global constants
 const enum Actions{
@@ -39,7 +39,7 @@ FileManager* buildFileManager(
     // Instantiates a file manager in the current directory or, if provided, a different one.
     FileManager* fileManager = new FileManager(directoryPathString);
 
-    // Read ALL of the paths recursively into memory.
+    // Read the file paths recursively into memory.
     fileManager->readPaths(forbiddenDirectories, allowedExtensions, depth, checkCaps);
 
     return fileManager;
@@ -51,7 +51,7 @@ FileManager* buildFileManager(
  * @param fileManager File manager instance.
 */
 void randomLoop(FileManager* fileManager) {
-    std::cout << "\nPress Enter to open additional files, or Esc to exit\n";
+    std::cout << "Press Enter to open files, or Esc to exit\n\n";
     int c;
     do {
         c = _getch();
@@ -62,7 +62,7 @@ void randomLoop(FileManager* fileManager) {
 }
 
 /**
- * @brief Allows the user to navigate through a shuffled file array until the designated exit key(s) is pressed.
+ * @brief Allows the user to navigate through a shuffled file playlist until the designated exit key(s) is pressed.
  * 
  * @param fileManager File manager instance.
 */
@@ -84,9 +84,6 @@ void sequentialLoop(FileManager* fileManager) {
  * @brief Performs the default action.
 */
 void defaultAction(FileManager* fileManager){
-    // Reads a file.
-    fileManager->executeRandomFile();
-
     // Open random files loop.
     randomLoop(fileManager);
 }
@@ -126,15 +123,15 @@ void showUsage(const char* programName){
          << "\t\tEnable playlist mode, where files will be shuffled and accessible sequentially.\n"
 
      << termcolor::bright_yellow << Args::FLAGS_SHORTENED[Args::exclude] << termcolor::reset << ", " << termcolor::bright_yellow << Args::FLAGS_WHOLE[Args::exclude] << termcolor::reset
-     << " [" << termcolor::bright_cyan << "directory1" << termcolor::reset << Args::DELIMITER
+     << termcolor::bright_cyan << "directory1" << termcolor::reset << Args::DELIMITER
              << termcolor::bright_cyan << "directory2" << termcolor::reset << Args::DELIMITER << "..." << Args::DELIMITER
-             << termcolor::bright_cyan << "directoryN" << termcolor::reset << "]"
+             << termcolor::bright_cyan << "directoryN" << termcolor::reset
          << "\tEnables directory blacklisting. Directories matching any of the specified paths will be skipped.\n"
      
      << termcolor::bright_yellow << Args::FLAGS_SHORTENED[Args::extensions] << termcolor::reset << ", " << termcolor::bright_yellow << Args::FLAGS_WHOLE[Args::extensions] << termcolor::reset
-     << " [" << termcolor::bright_cyan << "extension1" << termcolor::reset << Args::DELIMITER
+     << termcolor::bright_cyan << "extension1" << termcolor::reset << Args::DELIMITER
              << termcolor::bright_cyan << "extension2" << termcolor::reset << Args::DELIMITER << "..." << Args::DELIMITER
-             << termcolor::bright_cyan << "extensionN" << termcolor::reset << "]"
+             << termcolor::bright_cyan << "extensionN" << termcolor::reset
          << "\tEnables file extension whitelisting. Only files that exactly match any of the specified extensions will be taken into account.\n"
      
      << termcolor::bright_yellow << Args::FLAGS_SHORTENED[Args::depth] << termcolor::reset << ", " << termcolor::bright_yellow << Args::FLAGS_WHOLE[Args::depth] << termcolor::reset
@@ -161,7 +158,7 @@ int main(int argc, char** argv) {
     const char* executableName = argv[0];
 
     // Displays app name and version.
-    std::cout << termcolor::bright_green << "\nRandom File Opener v" << VERSION << termcolor::reset << "\n\n";
+    std::cout << termcolor::bright_green << "\nRandom File Opener v" << VERSION << termcolor::reset << "\n";
 
     // Declares and initializes variables.
     FileManager* fileManager;                      // File manager.
@@ -233,7 +230,7 @@ int main(int argc, char** argv) {
                     std::stringstream stringstream {argv[i]};
 
                     while (std::getline(stringstream, temp, Args::DELIMITER)) {
-                        allowedExtensions.push_back(FileManager::EXTENSION_DOT + temp);
+                        allowedExtensions.push_back(temp);
                     }
                 } catch (const std::exception& ex) {
                     std::cerr << termcolor::bright_red << "ERROR whitelisting extensions:\n" << ex.what() << termcolor::reset << std::endl;

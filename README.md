@@ -15,10 +15,14 @@ rfopener
 on the **directory that contains your pool of files** (whether they be in the root directory or any subdirectory).
 
 This command will:
-1. **Recursively iterate** through the working directory and its subdirectories up to the specified depth.
-2. **Store** each path **into memory**.
-3. **Pick a random path** and **open its corresponding file**.
-4. Ask whether to **repeat** step 3. Use the <kbd>Enter</kbd> or <kbd>Space</kbd> keys to open more files, or <kbd>Esc</kbd> or <kbd>Backspace</kbd> to exit.
+1. **Recursively iterate** through the working directory and its subdirectories, up to the specified depth.
+2. **Store** the **root path** and each individual **relative path** into memory.
+3. Wait for key presses.
+    1. When <kbd>Enter</kbd> or <kbd>Space</kbd> are pressed:
+        1. **Pick a random relative path** and **concatenate** it to the root path.
+        2. **Execute** the result.
+    2. When <kbd>Esc</kbd> or <kbd>Backspace</kbd> are pressed:
+        1. Exit.
 
 By default, there are **soft caps** of **50000 stored paths** and **10 depth levels**. Both can be disabled.
 
@@ -36,11 +40,11 @@ Alternatively, the program can **shuffle** a series of file paths and allow **se
 rfopener -p
 ```
 
-The playlist can be navigated in the following manner:
+The first file on the list will open automatically. From there, the playlist can be navigated in the following manner:
 - Forward: <kbd>&rarr;</kbd> and <kbd>&darr;</kbd> keys.
 - Backwards: <kbd>&larr;</kbd> and <kbd>&uarr;</kbd> keys.
 
-Both directions loop back to the opposite end of the playlist.
+Files are opened as the playlist is traversed and both directions loop back to the opposite end of the playlist.
 
 ## Usage
 

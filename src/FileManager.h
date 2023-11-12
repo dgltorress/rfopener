@@ -25,7 +25,10 @@ class FileManager {
         // Directory paths.
         std::filesystem::path rootDirectory;
         std::string rootDirectoryString;
-        std::vector<std::filesystem::path> blacklistedDirectories;
+        std::vector<std::filesystem::path> directoryBlacklist;
+
+        // Extensions.
+        std::vector<std::string> extensionWhitelist;
 
         // Path string vector.
         std::vector<std::string> relativePathStrings;
@@ -63,12 +66,6 @@ class FileManager {
         */
         static std::wstring utf8ToWide(const std::string&);
         /**
-        * @brief Executes a file.
-        * 
-        * @param relativePath The unprocessed relative path as a string.
-        */
-        void executeFile(const std::string&);
-        /**
         * @brief Adjusts a depth value.
         * 
         * @param depth Initial depth.
@@ -88,12 +85,23 @@ class FileManager {
         */
         void parseBlacklistedDirectories(const std::vector<std::string>&);
         /**
+        * @brief Parses extension names.
+        * 
+        * @param allowedExtensions List of allowed extensions.
+        */
+        void parseWhitelistedExtensions(const std::vector<std::string>&);
+        /**
         * @brief Determines whether a directory is blacklisted.
         * 
         * @param directory Directory.
-        * @param blacklistedDirectories List of blacklisted directories.
         */
         bool isDirectoryBlacklisted(const std::filesystem::path&);
+        /**
+        * @brief Determines whether an extension is whitelisted.
+        * 
+        * @param extension Extension.
+        */
+        bool isExtensionWhitelisted(const std::string&);
 
         // == Display functions ==
         /**
@@ -101,31 +109,33 @@ class FileManager {
         * 
         * @param depth Depth cap for this instance.
         */
-        void displayBasicInfo(const int);
+        void displayBasicInfo(const int) const;
         /**
         * @brief Displays a line containing a friendly list of extensions.
-        * 
-        * @param extensions Extension vector.
         */
-        void displayExtensionWhitelist(const std::vector<std::string>&);
+        void displayExtensionWhitelist() const;
+        /**
+        * @brief Displays all blacklisted directories.
+        */
+        void displayDirectoryBlacklist() const;
         /**
         * @brief Displays a warning notifying that a cap has been reached.
         * 
         * @param capName Name of the cap.
         * @param cap Amount reached.
         */
-        void displayCapWarning(const char*, int);
+        void displayCapWarning(const char*, const int) const;
         /**
         * @brief Displays the amount of scanned files and distinct directories.
         * 
         * @param fileCount File count.
         * @param directoryCount Directory count.
         */
-        void displayFileCounts(const unsigned int, const unsigned int);
+        void displayFileCounts(const unsigned int, const unsigned int) const;
         /**
         * @brief Displays the current playlist index and amount of elements.
         */
-        void displayPlaylistInfo();
+        void displayPlaylistInfo() const;
 
     public:
         // Soft limits and default values
@@ -162,6 +172,12 @@ class FileManager {
         * @brief Shuffles read paths.
         */
         void shuffle();
+        /**
+        * @brief Executes a file.
+        * 
+        * @param relativePath The unprocessed relative path as a string.
+        */
+        void executeFile(const std::string&) const;
         /**
         * @brief Executes a random file.
         */

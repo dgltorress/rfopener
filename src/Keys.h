@@ -20,11 +20,11 @@ class Keys {
         static boolean isConfirmKey(const int);
         // @return true if Esc or Back
         static boolean isExitKey(const int);
-        // @return true if Left arrow, Up arrow
+        // @return true if Left arrow or Up arrow
         static boolean isBackKey(const int);
-        // @return true if Right arrow, Down arrow
+        // @return true if Right arrow or Down arrow
         static boolean isForwardKey(const int);
-        // Performs `_getch()` if the character is an arrow
+        // @return Actual arrow value if the character is identified as an arrow prefix, or the same one
         static int refreshArrow(const int);
 };
 #endif

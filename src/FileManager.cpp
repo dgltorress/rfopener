@@ -15,7 +15,9 @@ FileManager::FileManager(std::string& unprocessedDirectoryPathString) {
 FileManager::~FileManager() {
 	rootDirectory.clear();
 	rootDirectoryString.clear();
-	blacklistedDirectories.clear();
+	directoryBlacklist.clear();
+
+	extensionWhitelist.clear();
 
     relativePathStrings.clear();
 }
@@ -64,21 +66,27 @@ void FileManager::readPaths(
 	// Validates (and adjusts, if necessary) the allowed depth value.
 	depth = adjustDepth(depth);
 
-	// Determines whether a directory blacklist and an extension whitelist must be checked.
+	// Display basic info
+	displayBasicInfo(depth);
+
+	// Determines whether a directory blacklist and an extension whitelist must be included.
 	bool isDirectoryBlacklistEnabled = (forbiddenDirectories.size() > 0);
 	bool isExtensionWhitelistEnabled = (allowedExtensions.size() > 0);
 
-	// If applicable, parses blacklisted directories.
+	// If applicable, parse and display blacklisted directories.
 	if (isDirectoryBlacklistEnabled) {
-		blacklistedDirectories.clear();
+		directoryBlacklist.clear();
 		parseBlacklistedDirectories(forbiddenDirectories);
+		displayDirectoryBlacklist();
 	}
 
-	// Displays relevant directories and files, as well as extensions (if any).
-	displayBasicInfo(depth);
+	// If applicable, parse and display whitelisted extensions.
 	if (isExtensionWhitelistEnabled) {
-		displayExtensionWhitelist(allowedExtensions);
+		extensionWhitelist.clear();
+		parseWhitelistedExtensions(allowedExtensions);
+		displayExtensionWhitelist();
 	}
+
 	printLine();
 
 	// Initializes counters.
@@ -122,24 +130,15 @@ void FileManager::readPaths(
 			// Do list files.
 			else {
 				// Ignore if extension whitelist is enabled and the current file's extension does not match any.
-				if (isExtensionWhitelistEnabled) {
-					size_t j = 0;
-					std::string fileExtension = path.extension().generic_u8string();
-					for (j; j < allowedExtensions.size(); ++j) {
-						if (fileExtension == allowedExtensions[j]) {
-							break;
-						}
-					}
-
-					// The file extension did not match any of the whitelisted extensions: skip to the next.
-					if (j == allowedExtensions.size()) {
-						continue;
-					}
+				if (isExtensionWhitelistEnabled &&
+					!isExtensionWhitelisted(path.extension().generic_u8string())) {
+					continue;
 				}
 
 				// Reads the file path, relative to the working directory, in UTF8 format.
-				std::string relativePathString = std::filesystem::relative(path, rootDirectory).generic_u8string();
-				relativePathStrings.push_back(relativePathString);
+				relativePathStrings.push_back(
+					std::filesystem::relative(path, rootDirectory).generic_u8string()
+				);
 
 				// Count file and path string bytes.
 				++fileCount;
@@ -195,7 +194,7 @@ void FileManager::executeFirstFile(){
 	}
 }
 
-void FileManager::executeFile(const std::string& relativePath) {
+void FileManager::executeFile(const std::string& relativePath) const{
 	// Constructs the path.
 	std::wstring wideFilePath = FileManager::utf8ToWide(rootDirectoryString + relativePath);
 	
@@ -246,7 +245,7 @@ void FileManager::adjustShuffleIndex(const bool backwards) {
 void FileManager::parseBlacklistedDirectories(const std::vector<std::string>& forbiddenDirectories) {
 	try {
 		for (const std::string& forbiddenDirectory : forbiddenDirectories) {
-			blacklistedDirectories.push_back(
+			directoryBlacklist.push_back(
 				std::filesystem::canonical(forbiddenDirectory)
 			);
 		}
@@ -256,46 +255,71 @@ void FileManager::parseBlacklistedDirectories(const std::vector<std::string>& fo
 	}
 }
 
+void FileManager::parseWhitelistedExtensions(const std::vector<std::string>& allowedExtensions) {
+	for (const std::string allowedExtension : allowedExtensions) {
+		extensionWhitelist.push_back(
+			EXTENSION_DOT + allowedExtension
+		);
+	}
+}
+
 bool FileManager::isDirectoryBlacklisted(const std::filesystem::path& directory) {
-	std::vector<std::filesystem::path>::iterator it = std::find(
-	    blacklistedDirectories.begin(),
-	    blacklistedDirectories.end(),
+	const std::vector<std::filesystem::path>::iterator it = std::find(
+	    directoryBlacklist.begin(),
+	    directoryBlacklist.end(),
 	    directory
 	);
-	return (it != blacklistedDirectories.end());
+	return (it != directoryBlacklist.end());
+}
+
+bool FileManager::isExtensionWhitelisted(const std::string& extension) {
+	const std::vector<std::string>::iterator it = std::find(
+	    extensionWhitelist.begin(),
+	    extensionWhitelist.end(),
+	    extension
+	);
+	return (it != extensionWhitelist.end());
 }
 
 
 
-void FileManager::displayBasicInfo(const int depth) {
+void FileManager::displayBasicInfo(const int depth) const{
 	std::cout << "\nWorking directory: " << termcolor::bright_cyan << rootDirectoryString << termcolor::reset
 		<< "\nDepth: " << termcolor::bright_cyan << depth << termcolor::reset;
 }
 
-void FileManager::displayExtensionWhitelist(const std::vector<std::string>& extensions) {
-	std::cout << "\nExtension whitelist: " << termcolor::bright_cyan;
-	int i = 0;
-	while(i < extensions.size()){
-		std::cout << extensions[i];
-		if(++i < extensions.size()) std::cout << termcolor::reset << EXTENSION_SEPARATOR << termcolor::bright_cyan;
+void FileManager::displayDirectoryBlacklist() const{
+	std::cout << "\nDirectory blacklist: \n" << termcolor::bright_cyan;
+	for (const std::filesystem::path& directory : directoryBlacklist) {
+		std::cout << directory.generic_u8string();
 	}
 	std::cout << termcolor::reset;
 }
 
-void FileManager::displayCapWarning(const char* capName, int cap) {
+void FileManager::displayExtensionWhitelist() const{
+	std::cout << "\nExtension whitelist: " << termcolor::bright_cyan;
+	int i = 0;
+	while(i < extensionWhitelist.size()){
+		std::cout << extensionWhitelist[i];
+		if(++i < extensionWhitelist.size()) std::cout << termcolor::reset << EXTENSION_SEPARATOR << termcolor::bright_cyan;
+	}
+	std::cout << termcolor::reset;
+}
+
+void FileManager::displayCapWarning(const char* capName, const int cap) const{
 	std::cout << termcolor::bright_yellow << "\n\nSoft cap for " << capName << " ("
 		<< termcolor::bright_cyan << cap << termcolor::bright_yellow
 		<< ") has been reached. Disable cap checking with flags "
 		<< Args::FLAGS_SHORTENED[Args::nocap] << " or " << Args::FLAGS_WHOLE[Args::nocap] << termcolor::reset << "\n\n";
 }
 
-void FileManager::displayFileCounts(const unsigned int fileCount, const unsigned int directoryCount) {
+void FileManager::displayFileCounts(const unsigned int fileCount, const unsigned int directoryCount) const{
 	std::cout
 		<< termcolor::bright_cyan << fileCount      << termcolor::reset << " files, "
 		<< termcolor::bright_cyan << directoryCount << termcolor::reset << " subdirectories scanned";
 }
 
-void FileManager::displayPlaylistInfo() {
+void FileManager::displayPlaylistInfo() const{
 	std::cout << termcolor::bright_magenta << "["
 		<< termcolor::bright_cyan << shuffleIndex + 1
 		<< termcolor::bright_magenta << " of "
@@ -304,5 +328,5 @@ void FileManager::displayPlaylistInfo() {
 }
 
 void FileManager::printLine() {
-	printf(CONSOLE_LINE);
+	std::cout << CONSOLE_LINE;
 }
