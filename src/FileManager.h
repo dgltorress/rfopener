@@ -10,6 +10,7 @@
 #include <vector>      // dynamic containers
 #include <windows.h>   // Windows API functions
 #include <limits>      // numeric limits interface
+#include <algorithm>   // find
 
 #include <fstream>     // file manipulation
 #include <filesystem>  // file navigation. C++17 ONLY.
@@ -28,9 +29,10 @@ class FileManager {
         std::ifstream fileRead;  // Read
         std::ofstream fileWrite; // Write
 
-        // Directory path.
+        // Directory paths.
         std::filesystem::path rootDirectory;
         std::string rootDirectoryString;
+        std::vector<std::filesystem::path> blacklistedDirectories;
 
         // Path string vector.
         std::vector<std::string> relativePathStrings;
@@ -43,14 +45,14 @@ class FileManager {
         /**
         * @brief Set up centralization for constructors.
         */
-        void setUp(std::string&);
+        void setUp(const std::string&);
         /**
         * @brief Sets the working directory.
         * 
         * @param unprocessedDirectoryPathString Absolute or relative path where the target directory is located.
         * @return If an error was thrown, returns `false`.
         */
-        bool setWorkingDirectory(std::string&);
+        bool setWorkingDirectory(const std::string&);
 
         // == Other functions ==
         /**
@@ -63,17 +65,29 @@ class FileManager {
         /**
         * @brief Executes a file.
         * 
-        * @param unprocessedPathString The unprocessed relative or canonical path as a string.
-        * @param canonical Whether the provided path is canonical (defaults to `false` - paths are assumed relative to the root directory).
+        * @param relativePath The unprocessed relative path as a string.
         */
-        void executeFile(std::string, bool = false);
+        void executeFile(const std::string&);
         /**
         * @brief Adjusts a depth value.
         * 
         * @param depth Initial depth.
         * @param checkCaps Whether to check for the soft cap for the levels of depth while adjusting.
         */
-        int adjustDepth(int, bool = true);
+        int adjustDepth(const int, const bool = true);
+        /**
+        * @brief Parses absolute or relative directory paths.
+        * 
+        * @param forbiddenDirectories List of blacklisted directories as absolute or relative path strings.
+        */
+        void parseBlacklistedDirectories(const std::vector<std::string>&);
+        /**
+        * @brief Determines whether a directory is blacklisted.
+        * 
+        * @param directory Directory.
+        * @param blacklistedDirectories List of blacklisted directories.
+        */
+        bool isDirectoryBlacklisted(const std::filesystem::path&);
 
         // == Display functions ==
         /**
@@ -87,7 +101,7 @@ class FileManager {
         * 
         * @param extensions Extension vector.
         */
-        void displayExtensionWhitelist(std::vector<std::string>&);
+        void displayExtensionWhitelist(const std::vector<std::string>&);
         /**
         * @brief Displays a warning notifying that a cap has been reached.
         * 
@@ -101,7 +115,7 @@ class FileManager {
         * @param fileCount File count.
         * @param directoryCount Directory count.
         */
-        void displayFileCounts(unsigned int, unsigned int);
+        void displayFileCounts(const unsigned int, const unsigned int);
 
     public:
         // Soft limits and default values

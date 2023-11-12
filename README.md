@@ -67,7 +67,7 @@ Options:
 <span style="color:#2a9d8f">E</span>***,
 where files will be **shuffled** and accessible **sequentially**.
 
-`-x`, `--exclude` `[directory1;directory2;...;directoryN]` Enables **directory blacklisting**. Directories matching any of the specified paths will be skipped.
+`-x`, `--exclude` `[directory1;directory2;...;directoryN]` Enables **directory blacklisting**. Directories matching any of the specified absolute or relative paths will be skipped.
 
 `-e`, `--extensions` `[extension1;extension2;...;extensionN]` Enables **file extension whitelisting**. Only files that exactly match any of the specified extensions will be taken into account.
 

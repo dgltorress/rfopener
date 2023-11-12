@@ -22,7 +22,7 @@ FileManager::~FileManager() {
     relativePathStrings.clear();
 }
 
-void FileManager::setUp(std::string& unprocessedDirectoryPathString) {
+void FileManager::setUp(const std::string& unprocessedDirectoryPathString) {
 	// Gets the canonical path to the specified directory.
 	if(!setWorkingDirectory(unprocessedDirectoryPathString)) exit(EXIT_FAILURE);
 
@@ -31,7 +31,7 @@ void FileManager::setUp(std::string& unprocessedDirectoryPathString) {
 }
 
 
-bool FileManager::setWorkingDirectory(std::string& unprocessedDirectoryPath) {
+bool FileManager::setWorkingDirectory(const std::string& unprocessedDirectoryPath) {
 	try {
 		// Sets the working directory as the current path if no directory was provided, and the canonical path if it was.
         rootDirectory = (unprocessedDirectoryPath.empty()) ?
@@ -62,8 +62,15 @@ void FileManager::readPaths(
 	// Validates (and adjusts, if necessary) the allowed depth value.
 	depth = adjustDepth(depth);
 
-	// Determines whether an extension whitelist must be checked.
+	// Determines whether a directory blacklist and an extension whitelist must be checked.
+	bool isDirectoryBlacklistEnabled = (forbiddenDirectories.size() > 0);
 	bool isExtensionWhitelistEnabled = (allowedExtensions.size() > 0);
+
+	// If applicable, parses blacklisted directories.
+	if (isDirectoryBlacklistEnabled) {
+		blacklistedDirectories.clear();
+		parseBlacklistedDirectories(forbiddenDirectories);
+	}
 
 	// Displays relevant directories and files, as well as extensions (if any).
 	displayBasicInfo(depth);
@@ -94,17 +101,17 @@ void FileManager::readPaths(
 			// Get the path of the current file.
 			std::filesystem::path path = i->path();
 
-			// Get the current depth.
-			int currentDepth = i.depth();
-
 			// Do not list directories.
 			if (std::filesystem::is_directory(path)) {
 				// Disable recursion for this directory if
 				if (
-					// the directory is blacklisted or
-					currentDepth >= depth // maximum depth has been reached
+					(
+						isDirectoryBlacklistEnabled &&
+					    isDirectoryBlacklisted(path)
+					) ||
+					i.depth() >= depth // maximum depth has been reached
 				) {
-					i.disable_recursion_pending();
+					i.disable_recursion_pending(); // skip
 				} else {
 					// Count directory.
 					++directoryCount;
@@ -157,12 +164,9 @@ void FileManager::executeRandomFile(){
 	}
 }
 
-void FileManager::executeFile(std::string unprocessedPathString, bool canonical) {
+void FileManager::executeFile(const std::string& relativePath) {
 	// Constructs the path.
-	std::string pathString = (canonical) ?
-		unprocessedPathString :
-		rootDirectoryString + unprocessedPathString;
-		 
+	std::string pathString = rootDirectoryString + relativePath;
 	std::wstring wideFilePath = FileManager::utf8ToWide(pathString);
 	
 	// Displays the path.
@@ -179,7 +183,7 @@ std::wstring FileManager::utf8ToWide(const std::string& utf8str) {
     return wstr;
 }
 
-int FileManager::adjustDepth(int depth, bool checkCaps){
+int FileManager::adjustDepth(const int depth, const bool checkCaps){
 	if (depth < MIN_DEPTH) {
 		return DEPTH_DEFAULT;
 	} else if (
@@ -192,6 +196,28 @@ int FileManager::adjustDepth(int depth, bool checkCaps){
 	else return depth;
 }
 
+void FileManager::parseBlacklistedDirectories(const std::vector<std::string>& forbiddenDirectories) {
+	try {
+		for (const std::string& forbiddenDirectory : forbiddenDirectories) {
+			blacklistedDirectories.push_back(
+				std::filesystem::canonical(forbiddenDirectory)
+			);
+		}
+	} catch (const std::exception& ex) {
+	    std::cerr << termcolor::bright_red << "ERROR while reading blacklisted directories into memory:\n" << ex.what() << termcolor::reset << "\n";
+		exit(EXIT_FAILURE);
+	}
+}
+
+bool FileManager::isDirectoryBlacklisted(const std::filesystem::path& directory) {
+	std::vector<std::filesystem::path>::iterator it = std::find(
+	    blacklistedDirectories.begin(),
+	    blacklistedDirectories.end(),
+	    directory
+	);
+	return (it != blacklistedDirectories.end());
+}
+
 
 
 void FileManager::displayBasicInfo(int depth) {
@@ -199,7 +225,7 @@ void FileManager::displayBasicInfo(int depth) {
 		<< "\nDepth: " << termcolor::bright_cyan << depth << termcolor::reset;
 }
 
-void FileManager::displayExtensionWhitelist(std::vector<std::string>& extensions) {
+void FileManager::displayExtensionWhitelist(const std::vector<std::string>& extensions) {
 	std::cout << "\nExtension whitelist: " << termcolor::bright_cyan;
 	int i = 0;
 	while(i < extensions.size()){
@@ -216,7 +242,7 @@ void FileManager::displayCapWarning(const char* capName, int cap) {
 		<< Args::FLAGS_SHORTENED[Args::nocap] << " or " << Args::FLAGS_WHOLE[Args::nocap] << termcolor::reset << "\n\n";
 }
 
-void FileManager::displayFileCounts(unsigned int fileCount, unsigned int directoryCount) {
+void FileManager::displayFileCounts(const unsigned int fileCount, const unsigned int directoryCount) {
 	std::cout
 		<< termcolor::bright_cyan << fileCount      << termcolor::reset << " files, "
 		<< termcolor::bright_cyan << directoryCount << termcolor::reset << " subdirectories scanned";

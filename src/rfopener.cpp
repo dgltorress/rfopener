@@ -205,8 +205,7 @@ int main(int argc, char** argv) {
                     std::stringstream stringstream {argv[i]};
 
                     while (std::getline(stringstream, temp, Args::DELIMITER)) {
-                        // pasar a relativo?
-                        //forbiddenDirectories.push_back();
+                        forbiddenDirectories.push_back(temp);
                     }
                 } catch (const std::exception& ex) {
                     std::cerr << termcolor::bright_red << "ERROR blacklisting directories:\n" << ex.what() << termcolor::reset << std::endl;
