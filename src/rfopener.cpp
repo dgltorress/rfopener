@@ -123,13 +123,13 @@ void showUsage(const char* programName){
          << "\t\tEnable playlist mode, where files will be shuffled and accessible sequentially.\n"
 
      << termcolor::bright_yellow << Args::FLAGS_SHORTENED[Args::exclude] << termcolor::reset << ", " << termcolor::bright_yellow << Args::FLAGS_WHOLE[Args::exclude] << termcolor::reset
-     << termcolor::bright_cyan << "directory1" << termcolor::reset << Args::DELIMITER
+     << termcolor::bright_cyan << " directory1" << termcolor::reset << Args::DELIMITER
              << termcolor::bright_cyan << "directory2" << termcolor::reset << Args::DELIMITER << "..." << Args::DELIMITER
              << termcolor::bright_cyan << "directoryN" << termcolor::reset
          << "\tEnables directory blacklisting. Directories matching any of the specified paths will be skipped.\n"
      
      << termcolor::bright_yellow << Args::FLAGS_SHORTENED[Args::extensions] << termcolor::reset << ", " << termcolor::bright_yellow << Args::FLAGS_WHOLE[Args::extensions] << termcolor::reset
-     << termcolor::bright_cyan << "extension1" << termcolor::reset << Args::DELIMITER
+     << termcolor::bright_cyan << " extension1" << termcolor::reset << Args::DELIMITER
              << termcolor::bright_cyan << "extension2" << termcolor::reset << Args::DELIMITER << "..." << Args::DELIMITER
              << termcolor::bright_cyan << "extensionN" << termcolor::reset
          << "\tEnables file extension whitelisting. Only files that exactly match any of the specified extensions will be taken into account.\n"
