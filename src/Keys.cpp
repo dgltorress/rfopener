@@ -1,7 +1,5 @@
 // Keys.h : declarations for special keys
 
-#include <Windows.h>
-
 #include "Keys.h"
 
 boolean Keys::isConfirmKey(const int c) {
@@ -26,10 +24,8 @@ boolean Keys::isExitKey(const int c) {
 
 boolean Keys::isBackKey(const int c) {
     switch (c) {
-        case VK_LEFT:
-        case VK_UP:
-        case VK_NUMPAD4:
-        case VK_NUMPAD8:
+        case LEFT_ARROW:
+        case UP_ARROW:
             return true;
         default:
             return false;
@@ -38,12 +34,16 @@ boolean Keys::isBackKey(const int c) {
 
 boolean Keys::isForwardKey(const int c) {
     switch (c) {
-        case VK_RIGHT:
-        case VK_DOWN:
-        case VK_NUMPAD6:
-        case VK_NUMPAD2:
+        case RIGHT_ARROW:
+        case DOWN_ARROW:
             return true;
         default:
             return false;
     }
+}
+int Keys::refreshArrow(const int c) {
+    if (c == ARROW_PREFIX) {
+        return _getch();
+    }
+    return c;
 }

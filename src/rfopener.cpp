@@ -71,6 +71,7 @@ void sequentialLoop(FileManager* fileManager) {
     int c;
     do {
         c = _getch();
+        c = Keys::refreshArrow(c);
         if (Keys::isForwardKey(c)) {
             fileManager->executeSequentialFile();
         } else if (Keys::isBackKey(c)) {

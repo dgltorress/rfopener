@@ -18,7 +18,7 @@ This command will:
 1. **Recursively iterate** through the working directory and its subdirectories up to the specified depth.
 2. **Store** each path **into memory**.
 3. **Pick a random path** and **open its corresponding file**.
-4. Ask whether to **repeat** step 3. Use the <kbd>Enter</kbd> or <kbd>Space</kbd> keys to do so, or <kbd>Esc</kbd> or <kbd>Backspace</kbd> to exit.
+4. Ask whether to **repeat** step 3. Use the <kbd>Enter</kbd> or <kbd>Space</kbd> keys to open more files, or <kbd>Esc</kbd> or <kbd>Backspace</kbd> to exit.
 
 By default, there are **soft caps** of **50000 stored paths** and **10 depth levels**. Both can be disabled.
 
@@ -37,8 +37,8 @@ rfopener -p
 ```
 
 The playlist can be navigated in the following manner:
-- Forward: <kbd>&rarr;</kbd>, <kbd>&darr;</kbd>, <kbd>Numpad6</kbd> or <kbd>Numpad2</kbd> keys.
-- Backwards: <kbd>&larr;</kbd>, <kbd>&uarr;</kbd>, <kbd>Numpad4</kbd> or <kbd>Numpad8</kbd> keys.
+- Forward: <kbd>&rarr;</kbd> and <kbd>&darr;</kbd> keys.
+- Backwards: <kbd>&larr;</kbd> and <kbd>&uarr;</kbd> keys.
 
 Both directions loop back to the opposite end of the playlist.
 
