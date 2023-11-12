@@ -13,23 +13,25 @@ FileManager::FileManager(std::string& unprocessedDirectoryPathString) {
 }
 
 FileManager::~FileManager() {
-	fileRead.close();
-	fileWrite.close();
-
 	rootDirectory.clear();
 	rootDirectoryString.clear();
+	blacklistedDirectories.clear();
 
     relativePathStrings.clear();
 }
 
 void FileManager::setUp(const std::string& unprocessedDirectoryPathString) {
 	// Gets the canonical path to the specified directory.
-	if(!setWorkingDirectory(unprocessedDirectoryPathString)) exit(EXIT_FAILURE);
+	if (!setWorkingDirectory(unprocessedDirectoryPathString)) {
+		exit(EXIT_FAILURE);
+	}
+
+	// Sets the shuffle index to 0
+	shuffleIndex = 0;
 
 	// Initializes a random seed.
-    srand((unsigned int)time(NULL));
+	randomEngine.seed((unsigned int)std::chrono::system_clock::now().time_since_epoch().count());
 }
-
 
 bool FileManager::setWorkingDirectory(const std::string& unprocessedDirectoryPath) {
 	try {
@@ -148,29 +150,57 @@ void FileManager::readPaths(
 		exit(EXIT_FAILURE);
 	}
 
+	// Sets the distribution.
+	distribution = std::uniform_int_distribution<>(0, (int)relativePathStrings.size() - 1);
+
 	// Displays the final file and directory counts.
 	displayFileCounts(fileCount, directoryCount);
 	printLine();
 }
 
+void FileManager::shuffle() {
+	std::shuffle(
+		relativePathStrings.begin(),
+		relativePathStrings.end(),
+		randomEngine
+	);
+}
+
 
 
 void FileManager::executeRandomFile(){
-	if(relativePathStrings.size() > 0){
-		executeFile(relativePathStrings[rand() % relativePathStrings.size()]);
+	if (relativePathStrings.size() > 0) {
+		executeFile(relativePathStrings[distribution(randomEngine)]);
+	} else {
+		std::cerr << termcolor::bright_yellow << "No paths have been stored into memory\n" << termcolor::reset;
 	}
-	else{
+}
+
+void FileManager::executeSequentialFile(const bool backwards){
+	if (relativePathStrings.size() > 0) {
+		adjustShuffleIndex(backwards);
+		displayPlaylistInfo();
+		executeFile(relativePathStrings[shuffleIndex]);
+	} else {
+		std::cerr << termcolor::bright_yellow << "No paths have been stored into memory\n" << termcolor::reset;
+	}
+}
+
+void FileManager::executeFirstFile(){
+	if (relativePathStrings.size() > 0) {
+		displayPlaylistInfo();
+		executeFile(relativePathStrings[0]);
+	} else {
 		std::cerr << termcolor::bright_yellow << "No paths have been stored into memory\n" << termcolor::reset;
 	}
 }
 
 void FileManager::executeFile(const std::string& relativePath) {
 	// Constructs the path.
-	std::string pathString = rootDirectoryString + relativePath;
-	std::wstring wideFilePath = FileManager::utf8ToWide(pathString);
+	std::wstring wideFilePath = FileManager::utf8ToWide(rootDirectoryString + relativePath);
 	
 	// Displays the path.
-	std::cout << "Opening " << termcolor::bright_cyan << pathString << termcolor::reset << " ...\n";
+	std::cout << termcolor::bright_cyan << relativePath << termcolor::reset << std::endl;
 	
 	// Executes the file corresponding to the path.
 	ShellExecuteW(0, 0, wideFilePath.c_str(), 0, 0, SW_SHOW);
@@ -183,7 +213,7 @@ std::wstring FileManager::utf8ToWide(const std::string& utf8str) {
     return wstr;
 }
 
-int FileManager::adjustDepth(const int depth, const bool checkCaps){
+int FileManager::adjustDepth(const int depth, const bool checkCaps) {
 	if (depth < MIN_DEPTH) {
 		return DEPTH_DEFAULT;
 	} else if (
@@ -194,6 +224,23 @@ int FileManager::adjustDepth(const int depth, const bool checkCaps){
 		return MAX_DEPTH;
 	}
 	else return depth;
+}
+
+void FileManager::adjustShuffleIndex(const bool backwards) {
+	const int shuffleLastIndex = (int)relativePathStrings.size() - 1;
+	if (backwards) {
+		if (shuffleIndex == 0) {
+			shuffleIndex = shuffleLastIndex;
+		} else {
+			--shuffleIndex;
+		}
+	} else {
+		if (shuffleIndex == shuffleLastIndex) {
+			shuffleIndex = 0;
+		} else {
+			++shuffleIndex;
+		}
+	}
 }
 
 void FileManager::parseBlacklistedDirectories(const std::vector<std::string>& forbiddenDirectories) {
@@ -220,7 +267,7 @@ bool FileManager::isDirectoryBlacklisted(const std::filesystem::path& directory)
 
 
 
-void FileManager::displayBasicInfo(int depth) {
+void FileManager::displayBasicInfo(const int depth) {
 	std::cout << "\nWorking directory: " << termcolor::bright_cyan << rootDirectoryString << termcolor::reset
 		<< "\nDepth: " << termcolor::bright_cyan << depth << termcolor::reset;
 }
@@ -246,6 +293,14 @@ void FileManager::displayFileCounts(const unsigned int fileCount, const unsigned
 	std::cout
 		<< termcolor::bright_cyan << fileCount      << termcolor::reset << " files, "
 		<< termcolor::bright_cyan << directoryCount << termcolor::reset << " subdirectories scanned";
+}
+
+void FileManager::displayPlaylistInfo() {
+	std::cout << termcolor::bright_magenta << "["
+		<< termcolor::bright_cyan << shuffleIndex + 1
+		<< termcolor::bright_magenta << " of "
+		<< termcolor::bright_cyan << relativePathStrings.size()
+		<< termcolor::bright_magenta << "] " << termcolor::reset;
 }
 
 void FileManager::printLine() {

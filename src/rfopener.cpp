@@ -66,15 +66,15 @@ void randomLoop(FileManager* fileManager) {
  * 
  * @param fileManager File manager instance.
 */
-void sequentialLoop(FileManager& fileManager) {
+void sequentialLoop(FileManager* fileManager) {
     std::cout << "\nPress the left and right arrow keys to navigate the playlist, or Esc to exit\n" << std::endl;
     int c;
     do {
         c = _getch();
         if (Keys::isForwardKey(c)) {
-
+            fileManager->executeSequentialFile();
         } else if (Keys::isBackKey(c)) {
-
+            fileManager->executeSequentialFile(true);
         }
     } while (!Keys::isExitKey(c));
 }
@@ -86,7 +86,7 @@ void defaultAction(FileManager* fileManager){
     // Reads a file.
     fileManager->executeRandomFile();
 
-    // Loop variables.
+    // Open random files loop.
     randomLoop(fileManager);
 }
 
@@ -94,7 +94,14 @@ void defaultAction(FileManager* fileManager){
  * @brief Performs the playlist action.
 */
 void playlistAction(FileManager* fileManager){
-    
+    // Shuffles the read paths.
+    fileManager->shuffle();
+
+    // Opens the first file.
+    fileManager->executeFirstFile();
+
+    // Open files sequentially loop.
+    sequentialLoop(fileManager);
 }
 
 /**

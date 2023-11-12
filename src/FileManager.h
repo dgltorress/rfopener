@@ -9,14 +9,11 @@
 #include <string>      // strings
 #include <vector>      // dynamic containers
 #include <windows.h>   // Windows API functions
-#include <limits>      // numeric limits interface
-#include <algorithm>   // find
+#include <algorithm>   // shuffle, find
+#include <random>      // default_random_engine
+#include <chrono>      // chrono, system_clock
 
-#include <fstream>     // file manipulation
 #include <filesystem>  // file navigation. C++17 ONLY.
-
-#include <stdlib.h>    // srand, rand
-#include <time.h>      // time
 
 #include "termcolor.h" // easy console colors, available at https://github.com/ikalnytskyi/termcolor
 
@@ -25,10 +22,6 @@
 class FileManager {
 
     private:
-        // Streams
-        std::ifstream fileRead;  // Read
-        std::ofstream fileWrite; // Write
-
         // Directory paths.
         std::filesystem::path rootDirectory;
         std::string rootDirectoryString;
@@ -37,9 +30,16 @@ class FileManager {
         // Path string vector.
         std::vector<std::string> relativePathStrings;
 
+        // Shuffle index.
+        int shuffleIndex;
+
         // Other
         static constexpr const char* EXTENSION_SEPARATOR = ", ";
         static constexpr const char* CONSOLE_LINE = "\n\n====================================================================================\n\n";
+
+        // Random.
+        std::default_random_engine randomEngine;
+        std::uniform_int_distribution<> distribution;
 
         // == Main functions ==
         /**
@@ -76,6 +76,12 @@ class FileManager {
         */
         int adjustDepth(const int, const bool = true);
         /**
+        * @brief Adjusts the shuffle index.
+        * 
+        * @param backwards Whether to go backwards. Defaults to false.
+        */
+        void adjustShuffleIndex(const bool = false);
+        /**
         * @brief Parses absolute or relative directory paths.
         * 
         * @param forbiddenDirectories List of blacklisted directories as absolute or relative path strings.
@@ -95,7 +101,7 @@ class FileManager {
         * 
         * @param depth Depth cap for this instance.
         */
-        void displayBasicInfo(int);
+        void displayBasicInfo(const int);
         /**
         * @brief Displays a line containing a friendly list of extensions.
         * 
@@ -116,6 +122,10 @@ class FileManager {
         * @param directoryCount Directory count.
         */
         void displayFileCounts(const unsigned int, const unsigned int);
+        /**
+        * @brief Displays the current playlist index and amount of elements.
+        */
+        void displayPlaylistInfo();
 
     public:
         // Soft limits and default values
@@ -149,9 +159,23 @@ class FileManager {
             bool = true
         );
         /**
+        * @brief Shuffles read paths.
+        */
+        void shuffle();
+        /**
         * @brief Executes a random file.
         */
         void executeRandomFile();
+        /**
+        * @brief Executes the following or previous shuffled file.
+        * 
+        * @param backwards Whether to go backwards. Defaults to false.
+        */
+        void executeSequentialFile(const bool = false);
+        /**
+        * @brief Executes the first file.
+        */
+        void executeFirstFile();
         /**
         * @brief Prints a line surrounded by double newline characters.
         */
