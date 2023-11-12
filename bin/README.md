@@ -1,1 +1,0 @@
-Compiled with **Visual Studio Community 2022** (*C++17*) for **Windows 11**
